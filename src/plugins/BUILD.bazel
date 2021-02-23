@@ -1,0 +1,79 @@
+load(
+    "//ign_bazel:build_defs.bzl",
+    "IGNITION_FEATURES",
+    "IGNITION_ROOT",
+    "IGNITION_VISIBILITY",
+)
+
+package(
+    default_visibility = IGNITION_VISIBILITY,
+    features = IGNITION_FEATURES,
+)
+
+plugins = {
+    "grid_3d": "Grid3D",
+    "image_display": "ImageDisplay",
+    "key_publisher": "KeyPublisher",
+    "plotting": "TransportPlotting",
+    "publisher": "Publisher",
+    "scene3d": "Scene3D",
+    "topic_echo": "TopicEcho",
+    "topic_viewer": "TopicViewer",
+    "world_control": "WorldControl",
+    "world_stats": "WorldStats",
+}
+
+[
+    genrule(
+        name = "qrc_%s" % name,
+        srcs = glob([
+            "%s/*.qrc" % folder,
+            "%s/*.qml" % folder,
+            "%s/*.png" % folder,
+            "%s/*.svg" % folder,
+        ]),
+        outs = ["%s/qrc_%s.cpp" % (folder, name)],
+        cmd = "qtchooser -qt=5 -run-tool=rcc --verbose --name %s --output $(OUTS) $(location %s/%s.qrc)" % (name, folder, name),
+    )
+    for folder, name in plugins.items()
+]
+
+[
+    genrule(
+        name = "moc_%s" % name,
+        srcs = glob(["%s/*.hh" % folder]),
+        outs = ["%s/moc_%s.cpp" % (folder, name)],
+        cmd = "qtchooser -qt=5 -run-tool=moc $(SRCS) -o $@ -f'%s.hh'" % name,
+    )
+    for (folder, name) in plugins.items()
+]
+
+[
+    cc_binary(
+        name = "lib%s.so" % name,
+        srcs = glob(
+            [
+                "%s/*.cc" % folder,
+                "%s/*.hh" % folder,
+            ],
+            exclude = ["**/*_TEST.cc"],
+        ) + [
+            "%s/moc_%s.cpp" % (folder, name),
+            "%s/qrc_%s.cpp" % (folder, name),
+        ],
+        data = [
+            IGNITION_ROOT + "ign_rendering/ogre2:libignition-rendering-ogre2.so",
+        ],
+        includes = [folder],
+        linkshared = True,
+        deps = [
+            IGNITION_ROOT + "ign_common/graphics",
+            IGNITION_ROOT + "ign_gui",
+            IGNITION_ROOT + "ign_math",
+            IGNITION_ROOT + "ign_msgs",
+            IGNITION_ROOT + "ign_plugin/register",
+            IGNITION_ROOT + "ign_rendering",
+        ],
+    )
+    for (folder, name) in plugins.items()
+]

@@ -127,6 +127,7 @@ TEST(MainWindowTest, IGN_UTILS_TEST_DISABLED_ON_WIN32(OnLoadConfig))
   Application app(g_argc, g_argv);
 
   // Add test plugins to path
+  App()->AddPluginPath(std::string(PROJECT_BINARY_PATH));
   App()->AddPluginPath(std::string(PROJECT_BINARY_PATH) + "/lib");
 
   // Get main window
@@ -169,6 +170,7 @@ TEST(MainWindowTest, IGN_UTILS_TEST_ENABLED_ONLY_ON_LINUX(OnAddPlugin))
   Application app(g_argc, g_argv);
 
   // Add test plugins to path
+  App()->AddPluginPath(std::string(PROJECT_BINARY_PATH));
   App()->AddPluginPath(std::string(PROJECT_BINARY_PATH) + "/lib");
 
   // Get window

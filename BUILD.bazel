@@ -1,0 +1,311 @@
+load(
+    "//ign_bazel:build_defs.bzl",
+    "IGNITION_FEATURES",
+    "IGNITION_ROOT",
+    "IGNITION_VISIBILITY",
+    "cmake_configure_file",
+    "generate_include_header",
+    "ign_config_header",
+    "ign_export_header",
+)
+
+package(
+    default_visibility = IGNITION_VISIBILITY,
+    features = IGNITION_FEATURES,
+)
+
+licenses(["notice"])
+
+exports_files(["LICENSE"])
+
+PROJECT_NAME = "ignition-gui"
+
+PROJECT_MAJOR = 4
+
+PROJECT_MINOR = 0
+
+PROJECT_PATCH = 0
+
+# Generates config.hh based on the version numbers in CMake code.
+ign_config_header(
+    name = "config",
+    src = "include/ignition/gui/config.hh.in",
+    cmakelists = ["CMakeLists.txt"],
+    extra_defines = [
+        "CMAKE_INSTALL_PREFIX=.",
+        "IGN_LIB_INSTALL_DIR=.",
+    ],
+    project_name = PROJECT_NAME,
+    project_version = (PROJECT_MAJOR, PROJECT_MINOR, PROJECT_PATCH),
+)
+
+ign_export_header(
+    name = "include/ignition/gui/Export.hh",
+    export_base = "IGNITION_GUI",
+    lib_name = "ignition-gui",
+    visibility = ["//visibility:private"],
+)
+
+qt_headers = [
+    "Application",
+    "Dialog",
+    "MainWindow",
+    "PlottingInterface",
+    "Plugin",
+]
+
+public_headers_no_gen = [
+    "include/ignition/gui/Conversions.hh",
+    "include/ignition/gui/DragDropModel.hh",
+    "include/ignition/gui/Enums.hh",
+    "include/ignition/gui/GuiEvents.hh",
+    "include/ignition/gui/Helpers.hh",
+    "include/ignition/gui/ign.hh",
+    "include/ignition/gui/SearchModel.hh",
+    "include/ignition/gui/qt.h",
+] + ["include/ignition/gui/%s.hh" % header for header in qt_headers]
+
+sources = [
+    "src/Application.cc",
+    "src/Conversions.cc",
+    "src/Dialog.cc",
+    "src/DragDropModel.cc",
+    "src/Helpers.cc",
+    "src/ign.cc",
+    "src/MainWindow.cc",
+    "src/PlottingInterface.cc",
+    "src/Plugin.cc",
+    "src/SearchModel.cc",
+]
+
+test_sources = [
+    "src/Application_TEST.cc",
+    "src/Conversions_TEST.cc",
+    "src/DragDropModel_TEST.cc",
+    "src/Helpers_TEST.cc",
+    "src/MainWindow_TEST.cc",
+    "src/Plugin_TEST.cc",
+    "src/SearchModel_TEST.cc",
+]
+
+generate_include_header(
+    name = "guihh_genrule",
+    out = "include/ignition/gui.hh",
+    hdrs = public_headers_no_gen + [
+        "include/ignition/gui/config.hh",
+        "include/ignition/gui/Export.hh",
+    ],
+)
+
+public_headers = public_headers_no_gen + [
+    "include/ignition/gui/config.hh",
+    "include/ignition/gui/Export.hh",
+    "include/ignition/gui.hh",
+]
+
+[
+    genrule(
+        name = "moc_%s" % name,
+        srcs = ["include/ignition/gui/%s.hh" % name],
+        outs = ["include/ignition/gui/moc_%s.cpp" % name],
+        cmd = "qtchooser -qt=5 -run-tool=moc $(SRCS) -o $@ -f'ignition/gui/%s.hh'" % name,
+    )
+    for name in qt_headers
+]
+
+genrule(
+    name = "resources_gen",
+    srcs = [
+        "include/ignition/gui/resources.qrc",
+        "include/ignition/gui/qtquickcontrols2.conf",
+    ] + glob([
+        "include/ignition/gui/qml/*.qml",
+        "include/ignition/gui/qml/images/*.png",
+    ]),
+    outs = ["include/ignition/gui/qrc_resources.cpp"],
+    cmd = "qtchooser -qt=5 -run-tool=rcc --verbose --name resources --output $(OUTS) $(location include/ignition/gui/resources.qrc)",
+)
+
+cc_library(
+    name = "ign_gui",
+    srcs = sources + [
+        "include/ignition/gui/qrc_resources.cpp",
+    ] + ["include/ignition/gui/moc_%s.cpp" % name for name in qt_headers],
+    hdrs = public_headers,
+    defines = [
+        "IGN_GUI_PLUGIN_PATH='\"ign_gui/src/plugins/\"'",
+        "IGN_GUI_STATIC=true",
+    ],
+    includes = ["include"],
+    deps = [
+        "@qt//:qt_core",
+        "@qt//:qt_gui",
+        "@qt//:qt_network",
+        "@qt//:qt_qml",
+        "@qt//:qt_quick",
+        "@qt//:qt_quickcontrols2",
+        "@qt//:qt_widgets",
+        IGNITION_ROOT + "ign_common",
+        IGNITION_ROOT + "ign_common/events",
+        IGNITION_ROOT + "ign_plugin/loader",
+        IGNITION_ROOT + "ign_transport",
+    ],
+)
+
+cmake_configure_file(
+    name = "test_config",
+    src = "test/test_config.h.in",
+    out = "test/test_config.h",
+    cmakelists = ["test/CMakeLists.txt"],
+    defines = [
+        "PROJECT_BINARY_DIR=./ign_gui",
+        "PROJECT_SOURCE_DIR=./ign_gui",
+        "CMAKE_BINARY_DIR=./ign_gui",
+    ],
+    visibility = ["//visibility:private"],
+)
+
+cc_library(
+    name = "test_utils",
+    srcs = ["test/test_config.h"],
+    data = [
+        "test/config/ignore.config",
+        "test/config/plugins_menu.config",
+        "test/config/state.config",
+        "test/config/test.config",
+        "test/media/fakemesh.dae",
+        "test/styles/red_bg.qss",
+    ],
+    includes = ["test"],
+    visibility = ["//visibility:private"],
+)
+
+genrule(
+    name = "moc_TestPlugin",
+    srcs = ["test/plugins/TestPlugin.hh"],
+    outs = ["test/plugins/moc_TestPlugin.cpp"],
+    cmd = "qtchooser -qt=5 -run-tool=moc $(SRCS) -o $@ -f'test/plugins/TestPlugin.hh'",
+)
+
+genrule(
+    name = "moc_TestBadInheritancePlugin",
+    srcs = ["test/plugins/TestBadInheritancePlugin.hh"],
+    outs = ["test/plugins/moc_TestBadInheritancePlugin.cpp"],
+    cmd = "qtchooser -qt=5 -run-tool=moc $(SRCS) -o $@ -f'test/plugins/TestBadInheritancePlugin.hh'",
+)
+
+genrule(
+    name = "moc_TestNotRegisteredPlugin",
+    srcs = ["test/plugins/TestNotRegisteredPlugin.hh"],
+    outs = ["test/plugins/moc_TestNotRegisteredPlugin.cpp"],
+    cmd = "qtchooser -qt=5 -run-tool=moc $(SRCS) -o $@ -f'test/plugins/TestNotRegisteredPlugin.hh'",
+)
+
+genrule(
+    name = "gen_TestPlugin",
+    srcs = [
+        "test/plugins/TestPlugin.qrc",
+        "test/plugins/TestPlugin.qml",
+    ],
+    outs = ["test/plugins/qrc_TestPlugin.cpp"],
+    cmd = "qtchooser -qt=5 -run-tool=rcc --verbose --name TestPlugin  --output $(OUTS) $(location test/plugins/TestPlugin.qrc)",
+)
+
+cc_binary(
+    name = "libTestPlugin.so",
+    srcs = [
+        "test/plugins/TestPlugin.cc",
+        "test/plugins/TestPlugin.hh",
+        "test/plugins/moc_TestPlugin.cpp",
+        "test/plugins/qrc_TestPlugin.cpp",
+    ],
+    includes = [
+        ".",
+        "test",
+    ],
+    linkshared = True,
+    deps = [
+        ":ign_gui",
+        IGNITION_ROOT + "ign_plugin/register",
+    ],
+)
+
+cc_binary(
+    name = "libTestBadInheritancePlugin.so",
+    srcs = [
+        "test/plugins/TestBadInheritancePlugin.cc",
+        "test/plugins/TestBadInheritancePlugin.hh",
+        "test/plugins/moc_TestBadInheritancePlugin.cpp",
+    ],
+    includes = [
+        ".",
+        "test",
+    ],
+    linkshared = True,
+    deps = [
+        ":ign_gui",
+        IGNITION_ROOT + "ign_plugin/register",
+    ],
+)
+
+cc_binary(
+    name = "libTestNotRegisteredPlugin.so",
+    srcs = [
+        "test/plugins/TestNotRegisteredPlugin.cc",
+        "test/plugins/TestNotRegisteredPlugin.hh",
+        "test/plugins/moc_TestNotRegisteredPlugin.cpp",
+    ],
+    includes = [
+        ".",
+        "test",
+    ],
+    linkshared = True,
+    deps = [
+        ":ign_gui",
+        IGNITION_ROOT + "ign_plugin/register",
+    ],
+)
+
+[cc_test(
+    name = src.replace("/", "_").replace(".cc", "").replace("src_", ""),
+    srcs = [src],
+    data = [
+        ":libTestBadInheritancePlugin.so",
+        ":libTestNotRegisteredPlugin.so",
+        ":libTestPlugin.so",
+    ],
+    defines = [
+        "PROJECT_SOURCE_PATH='\"./ign_gui/\"'",
+        "PROJECT_BINARY_PATH='\"./ign_gui/\"'",
+    ],
+    deps = [
+        ":ign_gui",
+        ":test_utils",
+        IGNITION_ROOT + "ign_gui/src/plugins:libPublisher.so",
+        "@gtest",
+        "@gtest//:gtest_main",
+    ],
+) for src in test_sources]
+
+cc_binary(
+    name = "window",
+    srcs = [
+        "examples/standalone/window/window.cc",
+    ],
+    data = [
+        IGNITION_ROOT + "ign_gui/src/plugins:libScene3D.so",
+    ],
+    deps = [
+        ":ign_gui",
+    ],
+)
+
+cc_binary(
+    name = "dialogs",
+    srcs = [
+        "examples/standalone/dialogs/dialogs.cc",
+    ],
+    deps = [
+        ":ign_gui",
+    ],
+)

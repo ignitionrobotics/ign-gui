@@ -306,6 +306,7 @@ bool Application::LoadPlugin(const std::string &_filename,
 
   common::SystemPaths systemPaths;
   systemPaths.SetPluginPathEnv(this->dataPtr->pluginPathEnv);
+  systemPaths.AddPluginPaths("./" + std::string(IGN_GUI_PLUGIN_PATH));
 
   for (const auto &path : this->dataPtr->pluginPaths)
     systemPaths.AddPluginPaths(path);
@@ -314,7 +315,7 @@ bool Application::LoadPlugin(const std::string &_filename,
   std::string home;
   common::env(IGN_HOMEDIR, home);
   systemPaths.AddPluginPaths(home + "/.ignition/gui/plugins:" +
-                             IGN_GUI_PLUGIN_INSTALL_DIR);
+                            IGN_GUI_PLUGIN_INSTALL_DIR);
 
   auto pathToLib = systemPaths.FindSharedLibrary(_filename);
   if (pathToLib.empty())
@@ -335,7 +336,6 @@ bool Application::LoadPlugin(const std::string &_filename,
               "]." << std::endl;
     return false;
   }
-
   // Go over all plugin names and get the first one that implements the
   // ignition::gui::Plugin interface
   plugin::PluginPtr commonPlugin;
@@ -570,7 +570,8 @@ std::vector<std::pair<std::string, std::vector<std::string>>>
   std::string home;
   common::env(IGN_HOMEDIR, home);
   paths.push_back(home + "/.ignition/gui/plugins");
-
+  paths.push_back(common::cwd() + "/" + std::string(IGN_GUI_PLUGIN_PATH));
+  
   // 4. Install path
   paths.push_back(IGN_GUI_PLUGIN_INSTALL_DIR);
 

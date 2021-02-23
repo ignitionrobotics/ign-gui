@@ -99,7 +99,7 @@ namespace plugins
     public: std::string sceneName{"scene"};
 
     /// \brief Engine name received at startup
-    public: std::string engineName{"ogre"};
+    public: std::string engineName{"ogre2"};
 
     /// \brief Grids received from config file on startup
     public: std::vector<GridInfo> startupGrids;

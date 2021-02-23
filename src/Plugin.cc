@@ -124,9 +124,21 @@ void Plugin::Load(const tinyxml2::XMLElement *_pluginElem)
   this->dataPtr->context->setContextProperty(QString::fromStdString(filename),
       this);
 
+  // TODO perhaps find a more generic way of locating these resource files
+  {
+    std::string pathToRcc = ignition::common::cwd() + "/ign_gui/src/plugins/qrc_" + filename + ".rcc";
+    QResource::registerResource(QString::fromStdString(pathToRcc));
+  }
+  {
+    std::string pathToRcc = ignition::common::cwd() + "/ign_gui/test/plugins/qrc_" + filename + ".rcc";
+    QResource::registerResource(QString::fromStdString(pathToRcc));
+  }
+
+
+
   // Instantiate plugin QML file into a component
-  std::string qmlFile(":/" + filename + "/" + filename + ".qml");
-  QQmlComponent component(App()->Engine(), QString::fromStdString(qmlFile));
+  std::string qmlFile("qrc:/" + filename + "/" + filename + ".qml");
+  QQmlComponent component(App()->Engine(), QUrl(QString::fromStdString(qmlFile)));
 
   // Create an item for the plugin
   this->dataPtr->pluginItem =

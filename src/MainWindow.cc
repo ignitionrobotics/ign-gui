@@ -26,6 +26,14 @@
 #include "ignition/gui/Plugin.hh"
 #include "ignition/gui/qt.h"
 
+#if IGN_GUI_STATIC
+/// \brief Helper function to add QRC resources from static library
+void InitQrcResources()
+{
+  Q_INIT_RESOURCE(resources);
+}
+#endif
+
 namespace ignition
 {
   namespace gui
@@ -67,6 +75,10 @@ std::string dirName(const std::string &_path)
 MainWindow::MainWindow()
   : dataPtr(new MainWindowPrivate)
 {
+#if IGN_GUI_STATIC
+  InitQrcResources();
+#endif
+
   // Make MainWindow functions available from all QML files (using root)
   App()->Engine()->rootContext()->setContextProperty("MainWindow", this);
 

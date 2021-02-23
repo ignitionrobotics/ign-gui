@@ -17,6 +17,8 @@
 
 #include <iostream>
 
+#include <tinyxml2.h>
+
 #ifndef Q_MOC_RUN
   #include <ignition/gui/qt.h>
   #include <ignition/gui/Application.hh>
@@ -34,8 +36,19 @@ int main(int _argc, char **_argv)
   // Create app
   ignition::gui::Application app(_argc, _argv);
 
+  const char *pluginStr =
+    "<plugin filename=\"Scene3D\">"
+      "<engine>ogre2</engine>"
+      "<scene>banana</scene>"
+      "<ambient_light>1.0 0 0</ambient_light>"
+      "<background_color>0 1 0</background_color>"
+      "<camera_pose>1 2 3 0 0 1.57</camera_pose>"
+    "</plugin>";
+  tinyxml2::XMLDocument pluginDoc;
+  pluginDoc.Parse(pluginStr);
+
   // Load plugins / config
-  if (!app.LoadPlugin("Publisher"))
+  if (!app.LoadPlugin("Scene3D", pluginDoc.FirstChildElement("plugin")))
   {
     return 1;
   }
