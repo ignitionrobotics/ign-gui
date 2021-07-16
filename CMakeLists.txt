@@ -75,6 +75,11 @@ if (ignition-tools_FOUND)
 endif()
 
 #--------------------------------------
+# Find ignition-utils
+ign_find_package(ignition-utils1 REQUIRED COMPONENTS cli)
+set(IGN_UTILS_VER ${ignition-utils1_VERSION_MAJOR})
+
+#--------------------------------------
 # Find QT
 ign_find_package (Qt5
   COMPONENTS
@@ -82,8 +87,9 @@ ign_find_package (Qt5
     Quick
     QuickControls2
     Widgets
+    Qml
   REQUIRED
-  PKGCONFIG "Qt5Core Qt5Quick Qt5QuickControls2 Qt5Widgets"
+  PKGCONFIG "Qt5Core Qt5Quick Qt5Qml Qt5QuickControls2 Qt5Widgets"
 )
 
 set(IGNITION_GUI_PLUGIN_INSTALL_DIR
@@ -94,11 +100,6 @@ set(IGNITION_GUI_PLUGIN_INSTALL_DIR
 # Configure the build
 #============================================================================
 ign_configure_build(QUIT_IF_BUILD_ERRORS)
-
-#============================================================================
-# ign command line support
-#============================================================================
-add_subdirectory(conf)
 
 #============================================================================
 # Create package information

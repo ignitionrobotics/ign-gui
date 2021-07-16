@@ -86,7 +86,9 @@ MainWindow::MainWindow()
     return;
   }
 
-  App()->setWindowIcon(QIcon(":/qml/images/ignition_logo_50x50.png"));
+  App()->setWindowIcon(QIcon(
+    common::joinPaths(
+      ":", "qml", "images", "ignition_logo_50x50.png").c_str()));
 }
 
 /////////////////////////////////////////////////
@@ -103,8 +105,13 @@ QStringList MainWindow::PluginListModel() const
   {
     for (auto const &plugin : path.second)
     {
+#ifndef _WIN32
       // Remove lib and .so
       auto pluginName = plugin.substr(3, plugin.find(".") - 3);
+#else
+      // Remove lib and .dll
+      auto pluginName = plugin.substr(0, plugin.find("."));
+#endif
 
       // Split WWWCamelCase3D -> WWW Camel Case 3D
       std::regex reg("(\\B[A-Z][a-z])|(\\B[0-9])");

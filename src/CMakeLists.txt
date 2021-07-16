@@ -6,7 +6,6 @@ set (sources
   ${CMAKE_CURRENT_SOURCE_DIR}/Dialog.cc
   ${CMAKE_CURRENT_SOURCE_DIR}/DragDropModel.cc
   ${CMAKE_CURRENT_SOURCE_DIR}/Helpers.cc
-  ${CMAKE_CURRENT_SOURCE_DIR}/ign.cc
   ${CMAKE_CURRENT_SOURCE_DIR}/MainWindow.cc
   ${CMAKE_CURRENT_SOURCE_DIR}/PlottingInterface.cc
   ${CMAKE_CURRENT_SOURCE_DIR}/Plugin.cc
@@ -20,7 +19,6 @@ set (gtest_sources
   DragDropModel_TEST
   Helpers_TEST
   GuiEvents_TEST
-  ign_TEST
   MainWindow_TEST
   PlottingInterface_TEST
   Plugin_TEST

@@ -1,6 +1,6 @@
-#!/usr/bin/ruby
+#!/usr/bin/env ruby
 
-# Copyright (C) 2017 Open Source Robotics Foundation
+# Copyright (C) 2014 Open Source Robotics Foundation
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,193 +14,52 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# We use 'dl' for Ruby <= 1.9.x and 'fiddle' for Ruby >= 2.0.x
-if RUBY_VERSION.split('.')[0] < '2'
-  require 'dl'
-  require 'dl/import'
-  include DL
-else
-  require 'fiddle'
-  require 'fiddle/import'
-  include Fiddle
-end
-
-require 'optparse'
+require 'open3'
 
 # Constants.
-LIBRARY_NAME = '@IGN_LIBRARY_NAME@'
 LIBRARY_VERSION = '@PROJECT_VERSION_FULL@'
-COMMON_OPTIONS =
-               "  -h [ --help ]              Print this help message.\n"\
-               "                                                    \n"        +
-               "  --force-version <VERSION>  Use a specific library version.\n"\
-               "                                                    \n"        +
-               '  --versions                 Show the available versions.'
-COMMANDS = {  'gui' =>
-                       "Ignition GUI tool.\n\n" +
-                       "  ign gui [options]\n\n" +
-                       "Options:\n\n" +
-                       "  -l [ --list ]              List all available plugins.\n" +
-                       "\n" +
-                       "  -s [ --standalone ] arg    Run a plugin as a standalone window.\n" +
-                       "                             Give the plugin filename as an argument.\n" +
-                       "\n" +
-                       "  -c [ --config ] arg        Open the main window with a configuration file.\n" +
-                       "                             Give the configuration file path as an argument.\n" +
-                       "\n" +
-                       "  -v [ --verbose ] [arg]     Adjust the level of console output (0~4).\n" +
-                       "                             The default verbosity is 1, use -v without\n"\
-                       "                             arguments for level 3.\n"\
-                       "\n" +
-                       COMMON_OPTIONS,
-            }
+COMMANDS = {
+  "gui" => "@gui_exe_location@",
+}
 
 #
 # Class for the Ignition gui command line tools.
 #
 class Cmd
-  #
-  # Return a structure describing the options.
-  #
-  def parse(args)
-    options = {
-      'verbose' => '1'
-    }
-
-    usage = COMMANDS[args[0]]
-
-    # Read the command line arguments.
-    opt_parser = OptionParser.new do |opts|
-      opts.banner = usage
-
-      opts.on('-h', '--help', 'Print this help message') do
-        puts usage
-        exit(0)
-      end
-      opts.on('-l', '--list', 'List plugins') do |l|
-        options['list'] = l
-      end
-      opts.on('-s standalone', '--standalone', String,
-          'Run a plugin standalone') do |s|
-        options['standalone'] = s
-      end
-      opts.on('-c config', '--config', String,
-          'Load a configuration file') do |c|
-        options['config'] = c
-      end
-      opts.on('-v [verbose]', '--verbose [verbose]', String,
-          'Adjust level of console output') do |v|
-        options['verbose'] = v || '3'
-      end
-
-    end
-    begin
-      opt_parser.parse!(args)
-    rescue
-      puts usage
-      exit(-1)
-    end
-
-    # Handle empty window case
-    # * no options or
-    # * none of the following:
-    #   - standalone
-    #   - config
-    #   - list
-    if options.empty? || (!options.key?('standalone') &&
-                          !options.key?('config') &&
-                          !options.key?('list'))
-      options['emptywindow'] = ''
-    end
-
-    # Check that there is at least one command we can handle
-    if ARGV.empty? || !COMMANDS.key?(ARGV[0])
-      puts usage
-      exit(-1)
-    end
-
-    options['command'] = ARGV[0]
-
-    options
-  end  # parse()
-
   def execute(args)
-    options = parse(args)
+    command = args[0]
+    exe_name = COMMANDS[command]
 
-    # puts 'Parsed:'
-    # puts options
-
-    # Read the plugin that handles the command.
-    plugin = LIBRARY_NAME
+    if exe_name[0] == '/'
+      # If the first character is a slash, we'll assume that we've been given an
+      # absolute path to the executable. This is only used during test mode.
+    else
+      # We're assuming that the library path is relative to the current
+      # location of this script.
+      exe_name = File.expand_path(File.join(File.dirname(__FILE__), exe_name))
+    end
     conf_version = LIBRARY_VERSION
-
-    begin
-      Importer.dlload plugin
-    rescue DLError
-      puts "Library error: [#{plugin}] not found."
-      exit(-1)
-    end
-
-    # Read the library version.
-    Importer.extern 'char* ignitionVersion()'
-    begin
-      plugin_version = Importer.ignitionVersion.to_s
-    rescue DLError
-      puts "Library error: Problem running 'ignitionVersion()' from #{plugin}."
-      exit(-1)
-    end
+    exe_version = `#{exe_name} --version`.strip
 
     # Sanity check: Verify that the version of the yaml file matches the version
     # of the library that we are using.
-    unless plugin_version.eql? conf_version
+    unless exe_version.eql? conf_version
       puts "Error: Version mismatch. Your configuration file version is
-            [#{conf_version}] but #{plugin} version is [#{plugin_version}]."
+            [#{conf_version}] but #{exe_name} version is [#{exe_version}]."
       exit(-1)
     end
 
-    begin
-      case options['command']
-      when 'gui'
-
-        # Options which don't open windows
-        if options.key?('list')
-          Importer.extern 'void cmdPluginList()'
-          Importer.cmdPluginList
-        # Options which open windows
-        elsif options.key?('standalone') or
-              options.key?('config') or
-              options.key?('emptywindow')
-
-          # Global configurations
-          if options.key?('verbose')
-            Importer.extern 'void cmdVerbose(const char *)'
-            Importer.cmdVerbose(options['verbose'])
-          end
-
-          # Open specific window
-          if options.key?('standalone')
-            Importer.extern 'void cmdStandalone(const char *)'
-            Importer.cmdStandalone(options['standalone'])
-          elsif options.key?('config')
-            Importer.extern 'void cmdConfig(const char *)'
-            Importer.cmdConfig(options['config'])
-          elsif options.key?('emptywindow')
-            Importer.extern 'void cmdEmptyWindow()'
-            Importer.cmdEmptyWindow()
-          end
-
-        # Unknown command
-        else
-          puts 'Command error: I do not have an implementation '\
-               'for this command.'
+    # Drop command from list of arguments
+    Open3.popen2e(exe_name, *args[1..-1]) do |_in, out_err, wait_thr|
+      begin
+        out_err.each do |line|
+          print line
         end
-      else
-        puts 'Command error: I do not have an implementation for '\
-             "command [ign #{options['command']}]."
+        exit(wait_thr.value.exitstatus)
+      rescue Interrupt => e
+        print e.message
+        exit(-1)
       end
-    rescue
-      puts "Library error: Problem running [#{options['command']}]() "\
-           "from #{plugin}."
     end
   end
 end

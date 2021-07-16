@@ -321,8 +321,17 @@ bool Application::LoadPlugin(const std::string &_filename,
   // Add default folder and install folder
   std::string home;
   common::env(IGN_HOMEDIR, home);
-  systemPaths.AddPluginPaths(home + "/.ignition/gui/plugins:" +
-                             IGN_GUI_PLUGIN_INSTALL_DIR);
+
+#ifndef _WIN32
+  std::string delimiter = ":";
+#else
+  std::string delimiter = ";";
+#endif
+
+  systemPaths.AddPluginPaths(
+    common::joinPaths(home, ".ignition", "gui", "plugins") +
+    delimiter +
+    IGN_GUI_PLUGIN_INSTALL_DIR);
 
   auto pathToLib = systemPaths.FindSharedLibrary(_filename);
   if (pathToLib.empty())
@@ -577,7 +586,7 @@ std::vector<std::pair<std::string, std::vector<std::string>>>
   // 3. ~/.ignition/gui/plugins
   std::string home;
   common::env(IGN_HOMEDIR, home);
-  paths.push_back(home + "/.ignition/gui/plugins");
+  paths.push_back(common::joinPaths(home, ".ignition", "gui", "plugins"));
 
   // 4. Install path
   paths.push_back(IGN_GUI_PLUGIN_INSTALL_DIR);
@@ -598,8 +607,14 @@ std::vector<std::pair<std::string, std::vector<std::string>>>
       // All we verify is that the file starts with "lib", any further
       // checks would require loading the plugin.
 
+#ifdef _WIN32
+      if (plugin.find(".lib") != std::string::npos)
+#else
       if (plugin.find("lib") == 0)
+#endif
+      {
         ps.push_back(plugin);
+      }
     }
 
     plugins.push_back(std::make_pair(path, ps));

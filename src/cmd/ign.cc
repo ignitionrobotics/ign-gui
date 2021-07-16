@@ -18,26 +18,29 @@
 #include <string.h>
 
 #include <iostream>
+#include <string>
 
 #include <ignition/common/Console.hh>
 
 #include "ignition/gui/Application.hh"
 #include "ignition/gui/config.hh"
-#include "ignition/gui/Export.hh"
-#include "ignition/gui/ign.hh"
+#include "ign.hh"
 #include "ignition/gui/MainWindow.hh"
 
 int g_argc = 1;
-char **g_argv;
+char* g_argv[] =
+{
+  reinterpret_cast<char*>(const_cast<char*>("./ign_TEST")),
+};
 
 //////////////////////////////////////////////////
-extern "C" IGNITION_GUI_VISIBLE char *ignitionVersion()
+extern "C" char *ignitionVersion()
 {
   return strdup(IGNITION_GUI_VERSION_FULL);
 }
 
 //////////////////////////////////////////////////
-extern "C" IGNITION_GUI_VISIBLE void cmdPluginList()
+extern "C" void cmdPluginList()
 {
   ignition::gui::Application app(g_argc, g_argv);
 
@@ -49,18 +52,32 @@ extern "C" IGNITION_GUI_VISIBLE void cmdPluginList()
     for (unsigned int i = 0; i < path.second.size(); ++i)
     {
       if (i == path.second.size() - 1)
+#ifndef _WIN32
         std::cout << "└── " << path.second[i] << std::endl;
+#else
+        std::cout << " -- " << path.second[i] << std::endl;
+#endif
       else
+#ifndef _WIN32
         std::cout << "├── " << path.second[i] << std::endl;
+#else
+        std::cout << "|-- " << path.second[i] << std::endl;
+#endif
     }
 
     if (path.second.empty())
+    {
+#ifndef _WIN32
       std::cout << "└── No plugins" << std::endl;
+#else
+      std::cout << " -- No plugins" << std::endl;
+#endif
+    }
   }
 }
 
 //////////////////////////////////////////////////
-extern "C" IGNITION_GUI_VISIBLE void cmdStandalone(const char *_filename)
+extern "C" void cmdStandalone(const char *_filename)
 {
   ignition::gui::Application app(g_argc, g_argv,
       ignition::gui::WindowType::kDialog);
@@ -74,7 +91,7 @@ extern "C" IGNITION_GUI_VISIBLE void cmdStandalone(const char *_filename)
 }
 
 //////////////////////////////////////////////////
-extern "C" IGNITION_GUI_VISIBLE void cmdConfig(const char *_config)
+extern "C" void cmdConfig(const char *_config)
 {
   ignition::gui::Application app(g_argc, g_argv);
 
@@ -92,13 +109,13 @@ extern "C" IGNITION_GUI_VISIBLE void cmdConfig(const char *_config)
 }
 
 //////////////////////////////////////////////////
-extern "C" IGNITION_GUI_VISIBLE void cmdVerbose(const char *_verbosity)
+extern "C" void cmdVerbose(int _verbosity)
 {
-  ignition::common::Console::SetVerbosity(std::atoi(_verbosity));
+  ignition::common::Console::SetVerbosity(_verbosity);
 }
 
 //////////////////////////////////////////////////
-extern "C" IGNITION_GUI_VISIBLE void cmdEmptyWindow()
+extern "C" void cmdEmptyWindow()
 {
   ignition::gui::Application app(g_argc, g_argv);
 
@@ -113,7 +130,7 @@ extern "C" IGNITION_GUI_VISIBLE void cmdEmptyWindow()
 }
 
 //////////////////////////////////////////////////
-extern "C" IGNITION_GUI_VISIBLE void cmdSetStyleFromFile(
+extern "C" void cmdSetStyleFromFile(
     const char * /*_filename*/)
 {
 //  ignition::gui::setStyleFromFile(std::string(_filename));

@@ -21,6 +21,7 @@
 
 #include <string>
 
+#include <ignition/common/Util.hh>
 #include <ignition/utilities/ExtraTestMacros.hh>
 
 #include "test_config.h"  // NOLINT(build/include)
@@ -53,9 +54,20 @@ std::string custom_exec_str(std::string _cmd)
 }
 
 // See https://github.com/ignitionrobotics/ign-gui/issues/75
-TEST(CmdLine, IGN_UTILS_TEST_ENABLED_ONLY_ON_LINUX(list))
+TEST(CmdLine, list)
 {
-  std::string output = custom_exec_str("ign gui -l");
+  std::string ignConfigPath;
+  ignition::common::env("IGN_CONFIG_PATH", ignConfigPath, true);
+#ifndef _WIN32
+  std::string cmd = std::string("IGN_CONFIG_PATH=") + ignConfigPath +
+    " ign gui -l";
+#else
+  std::string ign = std::string(IGN_PATH) + "/ign.rb";
+  std::string cmd = std::string("set IGN_CONFIG_PATH=") + ignConfigPath +
+    " && " + ign + " gui -l -v 4";
+#endif
+  std::string output = custom_exec_str(cmd);
+  std::cerr << "output " << output << std::endl;
   EXPECT_NE(output.find("TopicEcho"), std::string::npos) << output;
   EXPECT_NE(output.find("Publisher"), std::string::npos) << output;
 }
