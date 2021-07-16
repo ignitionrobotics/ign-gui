@@ -37,7 +37,6 @@
 #endif
 
 #include <ignition/rendering/Camera.hh>
-#include <ignition/rendering/OrbitViewController.hh>
 #include <ignition/rendering/RayQuery.hh>
 #include <ignition/rendering/RenderEngine.hh>
 #include <ignition/rendering/RenderingIface.hh>
@@ -67,17 +66,11 @@ class ignition::gui::plugins::IgnRenderer::Implementation
   /// \brief Key event
   public: common::KeyEvent keyEvent;
 
-  /// \brief Mouse move distance since last event.
-  public: math::Vector2d drag;
-
   /// \brief Mutex to protect mouse events
   public: std::mutex mutex;
 
   /// \brief User camera
   public: rendering::CameraPtr camera{nullptr};
-
-  /// \brief Camera orbit controller
-  public: rendering::OrbitViewController viewControl;
 
   /// \brief The currently hovered mouse position in screen coordinates
   public: math::Vector2i mouseHoverPos{math::Vector2i::Zero};
@@ -157,6 +150,7 @@ void IgnRenderer::HandleMouseEvent()
   this->BroadcastLeftClick();
   this->BroadcastRightClick();
   this->HandleMouseViewControl();
+  this->dataPtr->mouseDirty = false;
 }
 
 /////////////////////////////////////////////////
@@ -165,55 +159,12 @@ void IgnRenderer::HandleMouseViewControl()
   if (!this->dataPtr->mouseDirty)
     return;
 
-  this->dataPtr->viewControl.SetCamera(this->dataPtr->camera);
+  auto pos = this->ScreenToScene(this->dataPtr->mouseEvent.Pos());
 
-  if (this->dataPtr->mouseEvent.Type() == common::MouseEvent::SCROLL)
-  {
-    this->dataPtr->target =
-        this->ScreenToScene(this->dataPtr->mouseEvent.Pos());
-    this->dataPtr->viewControl.SetTarget(this->dataPtr->target);
-    double distance = this->dataPtr->camera->WorldPosition().Distance(
-        this->dataPtr->target);
-    double amount = -this->dataPtr->drag.Y() * distance / 5.0;
-    this->dataPtr->viewControl.Zoom(amount);
-  }
-  else
-  {
-    if (this->dataPtr->drag == math::Vector2d::Zero)
-    {
-      this->dataPtr->target = this->ScreenToScene(
-          this->dataPtr->mouseEvent.PressPos());
-      this->dataPtr->viewControl.SetTarget(this->dataPtr->target);
-    }
-
-    // Pan with left button
-    if (this->dataPtr->mouseEvent.Buttons() & common::MouseEvent::LEFT)
-    {
-      if (Qt::ShiftModifier == QGuiApplication::queryKeyboardModifiers())
-        this->dataPtr->viewControl.Orbit(this->dataPtr->drag);
-      else
-        this->dataPtr->viewControl.Pan(this->dataPtr->drag);
-    }
-    // Orbit with middle button
-    else if (this->dataPtr->mouseEvent.Buttons() & common::MouseEvent::MIDDLE)
-    {
-      this->dataPtr->viewControl.Orbit(this->dataPtr->drag);
-    }
-    else if (this->dataPtr->mouseEvent.Buttons() & common::MouseEvent::RIGHT)
-    {
-      double hfov = this->dataPtr->camera->HFOV().Radian();
-      double vfov = 2.0f * atan(tan(hfov / 2.0f) /
-          this->dataPtr->camera->AspectRatio());
-      double distance = this->dataPtr->camera->WorldPosition().Distance(
-          this->dataPtr->target);
-      double amount = ((-this->dataPtr->drag.Y() /
-          static_cast<double>(this->dataPtr->camera->ImageHeight()))
-          * distance * tan(vfov/2.0) * 6.0);
-      this->dataPtr->viewControl.Zoom(amount);
-    }
-  }
-  this->dataPtr->drag = 0;
-  this->dataPtr->mouseDirty = false;
+  events::LeftClickOnScene leftClickOnSceneEvent(this->dataPtr->mouseEvent);
+  events::LeftClickToScene leftClickToSceneEvent(pos);
+  App()->sendEvent(App()->findChild<MainWindow *>(), &leftClickOnSceneEvent);
+  App()->sendEvent(App()->findChild<MainWindow *>(), &leftClickToSceneEvent);
 }
 
 ////////////////////////////////////////////////
@@ -351,6 +302,7 @@ void IgnRenderer::Initialize()
 
   // Camera
   this->dataPtr->camera = scene->CreateCamera();
+  this->dataPtr->camera->SetUserData("user-camera", true);
   root->AddChild(this->dataPtr->camera);
   this->dataPtr->camera->SetLocalPose(this->cameraPose);
   this->dataPtr->camera->SetImageWidth(this->textureSize.width());
@@ -398,12 +350,10 @@ void IgnRenderer::NewHoverEvent(const math::Vector2i &_hoverPos)
 }
 
 /////////////////////////////////////////////////
-void IgnRenderer::NewMouseEvent(const common::MouseEvent &_e,
-    const math::Vector2d &_drag)
+void IgnRenderer::NewMouseEvent(const common::MouseEvent &_e)
 {
   std::lock_guard<std::mutex> lock(this->dataPtr->mutex);
   this->dataPtr->mouseEvent = _e;
-  this->dataPtr->drag += _drag;
   this->dataPtr->mouseDirty = true;
 }
 
@@ -874,10 +824,7 @@ void RenderWindowItem::mouseMoveEvent(QMouseEvent *_e)
   if (!event.Dragging())
     return;
 
-  auto dragInt = event.Pos() - this->dataPtr->mouseEvent.Pos();
-  auto dragDistance = math::Vector2d(dragInt.X(), dragInt.Y());
-
-  this->dataPtr->renderThread->ignRenderer.NewMouseEvent(event, dragDistance);
+  this->dataPtr->renderThread->ignRenderer.NewMouseEvent(event);
   this->dataPtr->mouseEvent = event;
 }
 
@@ -892,7 +839,8 @@ void RenderWindowItem::wheelEvent(QWheelEvent *_e)
 #endif
   double scroll = (_e->angleDelta().y() > 0) ? -1.0 : 1.0;
   this->dataPtr->renderThread->ignRenderer.NewMouseEvent(
-      this->dataPtr->mouseEvent, math::Vector2d(scroll, scroll));
+    this->dataPtr->mouseEvent);
+  this->dataPtr->mouseEvent.SetScroll(scroll, scroll);
 }
 
 ////////////////////////////////////////////////

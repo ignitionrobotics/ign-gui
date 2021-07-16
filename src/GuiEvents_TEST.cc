@@ -162,3 +162,15 @@ TEST(GuiEventsTest, DropdownMenuEnabled)
   EXPECT_LT(QEvent::User, event2.type());
   EXPECT_EQ(false, event2.MenuEnabled());
 }
+
+/////////////////////////////////////////////////
+TEST(GuiEventsTest, BlockOrbit)
+{
+  events::BlockOrbit event(true);
+  EXPECT_LT(QEvent::User, event.type());
+  EXPECT_TRUE(event.Block());
+
+  events::BlockOrbit event2(false);
+  EXPECT_LT(QEvent::User, event2.type());
+  EXPECT_FALSE(event2.Block());
+}

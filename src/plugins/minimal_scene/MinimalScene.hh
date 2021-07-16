@@ -102,9 +102,7 @@ namespace plugins
 
     /// \brief New mouse event triggered
     /// \param[in] _e New mouse event
-    /// \param[in] _drag Mouse move distance
-    public: void NewMouseEvent(const common::MouseEvent &_e,
-        const math::Vector2d &_drag = math::Vector2d::Zero);
+    public: void NewMouseEvent(const common::MouseEvent &_e);
 
     /// \brief New hover event triggered.
     /// \param[in] _hoverPos Mouse hover screen position

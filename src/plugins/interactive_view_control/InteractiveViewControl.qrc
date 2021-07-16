@@ -1,0 +1,5 @@
+<!DOCTYPE RCC><RCC version="1.0">
+<qresource prefix="InteractiveViewControl/">
+  <file>InteractiveViewControl.qml</file>
+</qresource>
+</RCC>

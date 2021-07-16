@@ -351,6 +351,28 @@ namespace ignition
         /// \brief Private data pointer
         IGN_UTILS_IMPL_PTR(dataPtr)
       };
+
+      /// \brief Event that block the Interactive View control when some of the
+      /// other plugins require it. For example: When the transform control is
+      /// active we should block the movements of the camera.
+      class IGNITION_GUI_VISIBLE BlockOrbit : public QEvent
+      {
+        /// \brief Constructor
+        /// \param[in] _block True to block otherwise False
+        public: explicit BlockOrbit(const bool &_block);
+
+        /// \brief Unique type for this event.
+        static const QEvent::Type kType = QEvent::Type(QEvent::MaxUser - 12);
+
+        /// \brief Get the if the event should block the Interactive view
+        /// controller
+        /// \return True to block otherwise False.
+        public: bool Block() const;
+
+        /// \internal
+        /// \brief Private data pointer
+        IGN_UTILS_IMPL_PTR(dataPtr)
+      };
     }
   }
 }
