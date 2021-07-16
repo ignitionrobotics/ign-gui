@@ -21,6 +21,8 @@
 #include <ignition/math/Rand.hh>
 #include <ignition/msgs/pose_v.pb.h>
 #include <ignition/msgs/scene.pb.h>
+#include <ignition/msgs/scene.pb.h>
+#include <ignition/msgs/world_stats.pb.h>
 #include <ignition/transport/Node.hh>
 
 using namespace std::chrono_literals;
@@ -76,6 +78,10 @@ int main(int argc, char **argv)
   node.Advertise("/example/scene", sceneService);
 
   // Periodic pose updated
+  auto statsPub =
+    node.Advertise<ignition::msgs::WorldStatistics>("/example/stats");
+
+  // Periodic pose updated
   auto posePub = node.Advertise<ignition::msgs::Pose_V>("/example/pose");
 
   ignition::msgs::Pose_V poseVMsg;
@@ -90,6 +96,10 @@ int main(int argc, char **argv)
   double y{0.0};
   double z{0.0};
 
+  std::chrono::steady_clock::duration timePoint =
+    std::chrono::steady_clock::duration::zero();
+  ignition::msgs::WorldStatistics msgWorldStatistics;
+
   while (true)
   {
     std::this_thread::sleep_for(100ms);
@@ -102,6 +112,16 @@ int main(int argc, char **argv)
     positionMsg->set_y(y);
     positionMsg->set_z(z);
     posePub.Publish(poseVMsg);
+
+    timePoint += 100ms;
+    msgWorldStatistics.set_real_time_factor(1);
+
+    auto s = std::chrono::duration_cast<std::chrono::seconds>(timePoint);
+    auto ns = std::chrono::duration_cast<std::chrono::nanoseconds>(timePoint-s);
+
+    msgWorldStatistics.mutable_sim_time()->set_sec(s.count());
+    msgWorldStatistics.mutable_sim_time()->set_nsec(ns.count());
+    statsPub.Publish(msgWorldStatistics);
   }
 
   ignition::transport::waitForShutdown();
